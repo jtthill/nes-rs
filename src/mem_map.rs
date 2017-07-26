@@ -1,0 +1,19 @@
+pub const INTERNAL_RAM_START: u16 = 0x0000;
+pub const INTERNAL_RAM_SIZE: u16 = 0x0800;
+pub const INTERNAL_RAM_END: u16 = INTERNAL_RAM_SIZE - INTERNAL_RAM_START - 1;
+
+pub const INTERNAL_RAM_MIRROR_1_START: u16 = 0x0800;
+pub const INTERNAL_RAM_MIRROR_2_START: u16 = 0x1000;
+pub const INTERNAL_RAM_MIRROR_3_START: u16 = 0x1800;
+pub const INTERNAL_RAM_MIRROR_SIZE: u16 = INTERNAL_RAM_SIZE;
+
+pub const PPU_CTRL_REG: u16 = 0x2000;
+pub const PPU_MASK_REG: u16 = 0x2001;
+pub const PPU_STATUS_REG: u16 = 0x2002;
+pub const OAM_ADDR_REG: u16 = 0x2003;
+pub const OAM_DATA_REG: u16 = 0x2004;
+pub const PPU_SCROLL_REG: u16 = 0x2005;
+pub const PPU_ADDR_REG: u16 = 0x2006;
+pub const PPU_DATA_REG: u16 = 0x2007;
+
+pub const OAM_DMA_REG: u16 = 0x4014;
