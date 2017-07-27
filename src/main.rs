@@ -1,5 +1,7 @@
 mod cpu;
 mod rom;
+mod bit_utils;
+mod mem_map;
 
 use std::env;
 
