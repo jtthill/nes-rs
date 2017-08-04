@@ -9,7 +9,7 @@ pub struct Cpu {
     reg_s: u8,
 
     //Status flag
-    reg_p: u8
+    reg_p: u8,
 }
 
 impl Cpu {

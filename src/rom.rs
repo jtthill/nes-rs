@@ -9,20 +9,21 @@ pub struct Rom {
     prg_rom_size: u32,
     chr_rom_size: u32,
 
+    //Put these values elsewhere?
     contains_prg_ram: bool,
     has_trainer: bool,
     mapper_num: u8,
 
     prg_rom: Box<[u8]>,
-    chr_rom: Box<[u8]>
+    chr_rom: Box<[u8]>,
 }
 
 pub enum RomError {
-    InvalidHeader
+    InvalidHeader,
 }
 
 impl Rom {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, RomError> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Rom, RomError> {
         //TODO: Add iNES 2.0 support
         //TODO: Error handling
         let mut file = fs::File::open(path).unwrap();
@@ -59,7 +60,7 @@ impl Rom {
             has_trainer: has_trainer,
             mapper_num: (flag_7 & 0xF0) | (flag_6 >> 4),
             prg_rom: prg_rom.into_boxed_slice(),
-            chr_rom: chr_rom.into_boxed_slice()
+            chr_rom: chr_rom.into_boxed_slice(),
         })
 
     }
