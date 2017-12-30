@@ -9,8 +9,8 @@ mod interconnect;
 use std::env;
 use minifb::{Key, WindowOptions, Window};
 
-const WIDTH: usize = 800;
-const HEIGHT: usize = 600;
+const WIDTH: usize = 256;
+const HEIGHT: usize = 240;
 
 fn main() {
 	println!("Hello, world!");
@@ -34,10 +34,10 @@ fn main() {
 										WIDTH,
 										HEIGHT,
 										WindowOptions::default()).unwrap();
-	while window_handle.is_open() && !window.is_key_down(Key::Escape) {
+	while window_handle.is_open() && !window_handle.is_key_down(Key::Escape) {
 		for i in window_buffer.iter_mut() {
 			*i = 0;
 		}
-		window.update_with_buffer(&window_buffer).unwrap();
+		window_handle.update_with_buffer(&window_buffer).unwrap();
 	}
 }
