@@ -4,6 +4,7 @@ use std::path::Path;
 use std::fs;
 use std::io::Read;
 
+#[derive(Debug)]
 pub struct Rom {
     //Sizes in number of bytes
     prg_rom_size: u32,
@@ -14,8 +15,8 @@ pub struct Rom {
     has_trainer: bool,
     mapper_num: u8,
 
-    prg_rom: Box<[u8]>,
-    chr_rom: Box<[u8]>,
+    prg_bytes: Box<[u8]>,
+    chr_bytes: Box<[u8]>,
 }
 
 pub enum RomError {
@@ -59,8 +60,8 @@ impl Rom {
             contains_prg_ram: bit_utils::test_bit_u8(&flag_6, 1),
             has_trainer: has_trainer,
             mapper_num: (flag_7 & 0xF0) | (flag_6 >> 4),
-            prg_rom: prg_rom.into_boxed_slice(),
-            chr_rom: chr_rom.into_boxed_slice(),
+            prg_bytes: prg_rom.into_boxed_slice(),
+            chr_bytes: chr_rom.into_boxed_slice(),
         })
 
     }

@@ -17,3 +17,7 @@ pub const PPU_ADDR_REG: u16 = 0x2006;
 pub const PPU_DATA_REG: u16 = 0x2007;
 
 pub const OAM_DMA_REG: u16 = 0x4014;
+
+pub const SRAM_START: u16 = 0x6000;
+pub const SRAM_SIZE: u16 = 0x2000;
+pub const SRAM_END: u16 = SRAM_SIZE - SRAM_START - 1;

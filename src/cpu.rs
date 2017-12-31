@@ -14,14 +14,9 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new() -> Self {
-        Cpu::default()
-    }
-
-    pub fn power_on_reset(&mut self) {
-        self.reg_a = 0x0;
-        self.reg_x = 0x0;
-        self.reg_y = 0x0;
-        self.reg_s = 0xFD;
-        self.reg_p = 0x34;
+        let mut cpu = Cpu::default();
+        cpu.reg_s = 0xFD;
+        cpu.reg_p = 0x34;
+		cpu
     }
 }
