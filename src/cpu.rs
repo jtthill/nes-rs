@@ -1,3 +1,5 @@
+use interconnect::Interconnect;
+
 #[derive(Default, Debug)]
 pub struct Cpu {
     //Accumulator
@@ -19,4 +21,8 @@ impl Cpu {
         cpu.reg_p = 0x34;
 		cpu
     }
+
+    pub fn step(&mut inter: Interconnect) -> u32 {
+		0
+	}
 }

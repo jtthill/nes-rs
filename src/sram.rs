@@ -32,4 +32,12 @@ impl Sram {
 			bytes,
 		})
 	}
+
+	pub fn read_byte(&self, addr: u16) -> u8 {
+		0
+	}
+
+	pub fn write_byte(&mut self, addr: u16, data: u8) {
+
+	}
 }

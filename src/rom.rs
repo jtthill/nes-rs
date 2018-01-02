@@ -24,7 +24,7 @@ pub enum RomError {
 }
 
 impl Rom {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Rom, RomError> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Rom, RomError> {
         //TODO: Add iNES 2.0 support
         //TODO: Error handling
         let mut file = fs::File::open(path).unwrap();
@@ -65,4 +65,12 @@ impl Rom {
         })
 
     }
+
+	pub fn read_byte(&self, addr: u16) -> u8 {
+		0
+	}
+
+	pub fn write_byte(&mut self, addr: u16, data: u8) {
+
+	}
 }

@@ -1,16 +1,19 @@
 use rom::Rom;
 use sram::Sram;
+use ram::Ram;
 
 pub struct Interconnect {
 	rom: Rom,
-	sram: Sram
+	sram: Sram,
+	ram: Ram,
 }
 
 impl Interconnect {
 	pub fn new(rom: Rom, sram: Sram) -> Self {
 		Interconnect {
 			rom,
-			sram
+			sram,
+			ram: Ram::new(),
 		}
 	}
 

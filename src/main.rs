@@ -5,27 +5,17 @@ mod cpu;
 mod interconnect;
 mod mem_map;
 mod nes;
+mod ram;
 mod rom;
 mod sram;
 
 use std::env;
-use minifb::{Key, WindowOptions, Window};
+use minifb::{Key, KeyRepeat, WindowOptions, Window, MouseMode};
 
 const WIDTH: usize = 256;
 const HEIGHT: usize = 240;
 
 fn main() {
-
-//	if let Some(rom_file_name) = env::args().nth(1) {
-//		if let Ok(rom) = rom::Rom::new(rom_file_name) {
-//			// Create memory with Rom object that was created
-//
-//		} else {
-//			panic!("Not given proper iNES file.");
-//		}
-//	} else {
-//		panic!("No arguments given.");
-//	}
 
 	let rom_file_name = match env::args().nth(1){
 		Some(filename) => {
@@ -35,7 +25,7 @@ fn main() {
 			panic!("No arguments given.");
 		}
 	};
-	let rom = match rom::Rom::new(rom_file_name) {
+	let rom = match rom::Rom::load(rom_file_name) {
 		Ok(rom) => {
 			println!("ROM loaded successfully.");
 			rom
@@ -54,10 +44,17 @@ fn main() {
 										WIDTH,
 										HEIGHT,
 										WindowOptions::default()).unwrap();
+	let mut last_mouse_pos = (0.0, 0.0);
 	while window_handle.is_open() && !window_handle.is_key_down(Key::Escape) {
 		for i in window_buffer.iter_mut() {
 			*i = 100;
 		}
 		window_handle.update_with_buffer(&window_buffer).unwrap();
+		window_handle.get_mouse_pos(MouseMode::Clamp).map(|mouse| {
+			if mouse != last_mouse_pos {
+				last_mouse_pos = mouse;
+				println!("x: {} y: {}", mouse.0, mouse.1);
+			}
+		});
 	}
 }

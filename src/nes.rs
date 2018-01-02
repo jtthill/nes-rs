@@ -2,7 +2,6 @@ use cpu::Cpu;
 use interconnect::Interconnect;
 use rom::Rom;
 use sram::Sram;
-use minifb::Window;
 
 pub struct Nes {
 	pub cpu: Cpu,
