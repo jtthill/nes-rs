@@ -1,0 +1,14 @@
+// Mapper ROM
+pub const EXPANSION_ROM_START: u16 = 0x4020;
+pub const EXPANSION_ROM_END: u16 = 0x5FFF;
+pub const EXPANSION_ROM_SIZE: u16 = EXPANSION_ROM_END - EXPANSION_ROM_START + 1;
+
+// SRAM
+pub const SRAM_START: u16 = 0x6000;
+pub const SRAM_SIZE: u16 = 0x2000;
+pub const SRAM_END: u16 = SRAM_SIZE + SRAM_START - 1;
+
+// Game ROM
+pub const PRG_ROM_START: u16 = 0x8000;
+pub const PRG_ROM_SIZE: u16 = 0x2000;
+pub const PRG_ROM_END: u16 = PRG_ROM_SIZE + PRG_ROM_START - 1;

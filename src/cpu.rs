@@ -22,7 +22,7 @@ impl Cpu {
 		cpu
     }
 
-    pub fn step(&mut inter: Interconnect) -> u32 {
+    pub fn step(inter: &mut Interconnect) -> u32 {
 		0
 	}
 }

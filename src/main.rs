@@ -1,16 +1,17 @@
 extern crate minifb;
 
+mod apu;
 mod bit_utils;
 mod cpu;
+mod gamepak;
 mod interconnect;
 mod mem_map;
 mod nes;
+mod ppu;
 mod ram;
-mod rom;
-mod sram;
 
 use std::env;
-use minifb::{Key, KeyRepeat, WindowOptions, Window, MouseMode};
+use minifb::{Key, WindowOptions, Window};
 
 const WIDTH: usize = 256;
 const HEIGHT: usize = 240;
@@ -25,18 +26,20 @@ fn main() {
 			panic!("No arguments given.");
 		}
 	};
-	let rom = match rom::Rom::load(rom_file_name) {
-		Ok(rom) => {
+	let gamepak = match gamepak::GamePak::load_rom(rom_file_name) {
+		Ok(gamepak) => {
 			println!("ROM loaded successfully.");
-			rom
+			gamepak
 		}
 		Err(err) => {
 			panic!("Couldn't load ROM.");
 		}
 	};
 
-	let mut nes = nes::Nes::new(rom, sram::Sram::new());
+	let mut nes = nes::Nes::new(gamepak);
 	println!("Cpu: {:#?}", nes.cpu);
+	println!("Mapper: {}", nes.interconnect.gamepak.mapper_num);
+	println!("Contains PRG Ram: {}", nes.interconnect.gamepak.contains_prg_ram);
 
 	let mut window_buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -50,11 +53,5 @@ fn main() {
 			*i = 100;
 		}
 		window_handle.update_with_buffer(&window_buffer).unwrap();
-		window_handle.get_mouse_pos(MouseMode::Clamp).map(|mouse| {
-			if mouse != last_mouse_pos {
-				last_mouse_pos = mouse;
-				println!("x: {} y: {}", mouse.0, mouse.1);
-			}
-		});
 	}
 }

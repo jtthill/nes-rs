@@ -1,7 +1,6 @@
 use cpu::Cpu;
 use interconnect::Interconnect;
-use rom::Rom;
-use sram::Sram;
+use gamepak::GamePak;
 
 pub struct Nes {
 	pub cpu: Cpu,
@@ -9,10 +8,10 @@ pub struct Nes {
 }
 
 impl Nes {
-	pub fn new(rom: Rom, sram: Sram) -> Self {
+	pub fn new(gamepak: GamePak) -> Self {
 		Nes {
 			cpu: Cpu::new(),
-			interconnect: Interconnect::new(rom, sram),
+			interconnect: Interconnect::new(gamepak),
 		}
 	}
 
