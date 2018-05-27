@@ -22,6 +22,7 @@ pub struct GamePak {
 	prg_ram_bytes: Option<Box<[u8]>>,
 }
 
+#[derive(Debug)]
 pub enum GamePakError {
 	InvalidHeader,
 }

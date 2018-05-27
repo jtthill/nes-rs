@@ -32,7 +32,7 @@ fn main() {
 			gamepak
 		}
 		Err(err) => {
-			panic!("Couldn't load ROM.");
+			panic!("Couldn't load ROM {:#?}.", err);
 		}
 	};
 
@@ -43,7 +43,7 @@ fn main() {
 
 	let mut window_buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
-	let mut window_handle = Window::new("Test Window",
+	let mut window_handle = Window::new("NES Emu",
 										WIDTH,
 										HEIGHT,
 										WindowOptions::default()).unwrap();
