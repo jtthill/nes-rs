@@ -11,11 +11,19 @@ pub struct Cpu {
     reg_s: u8,
 
     // Status flag
-    // (7)Negative - (6)Overflow - (5-4)Break - 
-    // (3)Decimal(unused) - (2)Interrupt - (1)Zero - (0)Carry
+    // 7:   Negative
+    // 6:   Overflow
+    // 5-4: Break
+    // 3:   Decimal(unused)
+    // 2:   Interrupt
+    // 1:   Zero
+    // 0:   Carry
     reg_p: u8,
+
+    opcode: u8,
 }
 
+#[derive(Debug)]
 enum AddressingMode {
     Implicit,
     Accumulator,
@@ -29,7 +37,7 @@ enum AddressingMode {
     AbsoluteY,
     Indirect,
     IndexedIndirect,
-    IndirectIndexed
+    IndirectIndexed,
 }
 
 impl Cpu {
@@ -37,17 +45,17 @@ impl Cpu {
         let mut cpu = Cpu::default();
         cpu.reg_s = 0xFD;
         cpu.reg_p = 0x34;
-    	cpu.reg_pc = 0xFFFC; // Reset vector
+        cpu.reg_pc = 0xFFFC; // Reset vector
         cpu
     }
 
     pub fn step(&mut self, inter: &mut Interconnect) -> u32 {
-		// Do one instruction. (Possibly micro-ops?) Return the number
+        // Do one instruction. (Possibly micro-ops?) Return the number
         // of cycles that were run in the emulation of the instruction
-        let opcode = inter.read_byte(self.reg_pc);
+        self.opcode = inter.read_byte(self.reg_pc);
         self.reg_pc += 1;
 
-        match opcode {
+        match self.opcode {
             0x69 => self.adc(inter, AddressingMode::Immediate),
             0x65 => self.adc(inter, AddressingMode::ZeroPage),
             0x75 => self.adc(inter, AddressingMode::ZeroPageX),
@@ -199,232 +207,272 @@ impl Cpu {
             0x8A => self.txa(inter, AddressingMode::Implicit),
             0x9A => self.txs(inter, AddressingMode::Implicit),
             0x98 => self.tya(inter, AddressingMode::Implicit),
-            _ => panic!("Unrecognized opcode.")
+            _ => panic!("Unrecognized opcode."),
         };
         0
-	}
+    }
     // ADC - Add with Carry
-    fn adc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
-        0
+    fn adc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
+        let mut cycles;
+        let mut mem_val;
+        println!("[0x{:X}] ADC using Addressing Mode {:?}", self.opcode, mode);
+        match mode {
+            AddressingMode::Immediate => {
+                mem_val = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                cycles = 2;
+            }
+            AddressingMode::ZeroPage => {
+                let mem_loc = inter.read_byte(self.reg_pc);
+                mem_val = inter.read_byte(mem_loc as u16);
+                self.reg_pc += 1;
+                cycles = 3;
+            }
+            AddressingMode::ZeroPageX => {
+                let mem_loc = inter.read_byte(self.reg_pc);
+                mem_val = inter.read_byte(mem_loc as u16 + self.reg_x as u16);
+                self.reg_pc += 1;
+                cycles = 4;
+            }
+            AddressingMode::Absolute => {
+                let mem_lo = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                let mem_hi = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                mem_val = inter.read_byte(((mem_hi << 4) | mem_lo) as u16);
+                cycles = 4;
+            }
+            AddressingMode::AbsoluteX => {
+                let mem_lo = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                let mem_hi = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                mem_val = inter.read_byte(((mem_hi << 4) | mem_lo) as u16 + self.reg_x as u16);
+                cycles = 4;
+            }
+
+            _ => panic!("Unrecognized addressing mode in ADC."),
+        };
+        cycles
     }
     // AND - Logical AND
-    fn and(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn and(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // ASL - Arithmetic Shift Left
-    fn asl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn asl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BCC - Branch if Carry Clear
-    fn bcc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bcc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BCS - Branch if Carry Set
-    fn bcs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bcs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BEQ - Branch if Equal
-    fn beq(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn beq(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BIT - Bit Test
-    fn bit(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bit(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BMI - Branch if Minus
-    fn bmi(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bmi(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BNE - Branch if Not Equal
-    fn bne(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bne(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BPL - Branch if Positive
-    fn bpl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bpl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BRK - Force Interrupt
-    fn brk(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn brk(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BVC - Branch if Overflow Clear
-    fn bvc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bvc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // BVS - Branch if Overflow Set
-    fn bvs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn bvs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CLC - Clear Carry Flag
-    fn clc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn clc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CLD - Clear Decimal Mode
-    fn cld(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn cld(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CLI - Clear Interrupt Disable
-    fn cli(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn cli(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CLV - Clear Overflow Flag
-    fn clv(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn clv(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CMP - Compare
-    fn cmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn cmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CPX - Compare X Register
-    fn cpx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn cpx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // CPY - Compare Y Register
-    fn cpy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn cpy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // DEC - Decrement Memory
-    fn dec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn dec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // DEX - Decrement X Register
-    fn dex(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn dex(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // DEY - Decrement Y Register
-    fn dey(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn dey(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // EOR - Exclusive OR
-    fn eor(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn eor(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // INC - Increment Memory
-    fn inc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn inc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // INX - Increment X Register
-    fn inx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn inx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // INY - Increment Y Register
-    fn iny(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn iny(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // JMP - Jump
-    fn jmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn jmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // JSR - Jump to Subroutine
-    fn jsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn jsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // LDA - Load Accumulator
-    fn lda(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn lda(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // LDX - Load X Register
-    fn ldx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn ldx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // LDY - Load Y Register
-    fn ldy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn ldy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // LSR - Logical Shift Right
-    fn lsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn lsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // NOP - No Operation
-    fn nop(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn nop(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // ORA - Logical Inclusive OR
-    fn ora(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn ora(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // PHA - Push Accumulator
-    fn pha(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn pha(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // PHP - Push Processor Status
-    fn php(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn php(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // PLA - Pull Accumulator
-    fn pla(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn pla(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // PLP - Pull Processor Status
-    fn plp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn plp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // ROL - Rotate Left
-    fn rol(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn rol(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // ROR - Rotate Right
-    fn ror(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn ror(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // RTI - Return from Interrupt
-    fn rti(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn rti(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // RTS - Return from Subroutine
-    fn rts(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn rts(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // SBC - Subtract with Carry
-    fn sbc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sbc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // SEC - Set Carry Flag
-    fn sec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // SED - Set Decimal Flag
-    fn sed(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sed(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // SEI - Set Interrupt Disable
-    fn sei(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sei(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // STA - Store Accumulator
-    fn sta(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sta(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // STX - Store X Register
-    fn stx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn stx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // STY - Store Y Register
-    fn sty(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn sty(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TAX - Transfer Accumulator to X
-    fn tax(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn tax(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TAY - Transfer Accumulator to Y
-    fn tay(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn tay(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TSX - Transfer Stack POinter to X
-    fn tsx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn tsx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TXA - Transfer X to Accumulator
-    fn txa(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn txa(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TXS - Transfer X to Stack Pointer
-    fn txs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn txs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
     // TYA - Transfer Y to Accumulator
-    fn tya(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u8 {
+    fn tya(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         0
     }
 }
