@@ -51,11 +51,11 @@ impl GamePak {
 		let mut prg_rom: Vec<u8> = vec![0; prg_rom_size as usize];
 		let mut chr_rom: Vec<u8> = vec![0; chr_rom_size as usize];
 		file.read_exact(prg_rom.as_mut_slice()).unwrap();
-		println!("PRG ROM size: {}", prg_rom.len()); //REMOVE
+		debug!("PRG ROM size: {}", prg_rom.len()); //REMOVE
 
 		if chr_rom_size > 0 {
 			file.read_exact(chr_rom.as_mut_slice()).unwrap();
-			println!("CHR ROM size: {}", chr_rom.len());
+			debug!("CHR ROM size: {}", chr_rom.len());
 		}
 
 		// TODO: proper initializing of SRAM with file loading
@@ -95,7 +95,10 @@ impl GamePak {
 //	}
 
 	pub fn read_byte(&self, addr: u16) -> u8 {
-		0
+		match self.mapper_num {
+			0 => 0,
+			_ => unimplemented!("Unimplemented mapper detected!")
+		}
 	}
 
 	pub fn write_byte(&mut self, addr: u16, data: u8) {

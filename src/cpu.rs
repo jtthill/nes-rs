@@ -1,3 +1,4 @@
+use bit_utils;
 use interconnect::Interconnect;
 
 #[derive(Default, Debug)]
@@ -13,8 +14,8 @@ pub struct Cpu {
     // Status flag
     // 7:   Negative
     // 6:   Overflow
-    // 5-4: Break
-    // 3:   Decimal(unused)
+    // 5-4: Break (Not really used in register)
+    // 3:   Decimal(unused by NES)
     // 2:   Interrupt
     // 1:   Zero
     // 0:   Carry
@@ -40,15 +41,63 @@ enum AddressingMode {
     IndirectIndexed,
 }
 
+enum StatusFlag {
+    Negative,
+    Overflow,
+    Break,
+    Decimal, //unused
+    Interrupt,
+    Zero,
+    Carry,
+}
+
 impl Cpu {
     pub fn new() -> Self {
         let mut cpu = Cpu::default();
-        cpu.reg_s = 0xFD;
-        cpu.reg_p = 0x34;
-        cpu.reg_pc = 0xFFFC; // Reset vector
         cpu
     }
 
+    pub fn power_on_reset(&mut self, inter: &Interconnect) {
+        self.reg_s = 0xFD;
+        self.reg_p = 0x34;
+        self.reg_pc = ((inter.read_byte(0xFFFD) as u16) << 4) | inter.read_byte(0xFFFC) as u16;
+    }
+
+    fn test_flag(&self, flag: StatusFlag) -> bool {
+        match flag {
+            StatusFlag::Negative => bit_utils::test_bit_u8(&self.reg_p, 7),
+            StatusFlag::Overflow => bit_utils::test_bit_u8(&self.reg_p, 6),
+            StatusFlag::Break => bit_utils::test_bit_u8(&self.reg_p, 4),
+            StatusFlag::Decimal => bit_utils::test_bit_u8(&self.reg_p, 3),
+            StatusFlag::Interrupt => bit_utils::test_bit_u8(&self.reg_p, 2),
+            StatusFlag::Zero => bit_utils::test_bit_u8(&self.reg_p, 1),
+            StatusFlag::Carry => bit_utils::test_bit_u8(&self.reg_p, 0),
+        }
+    }
+
+    fn set_flag(&mut self, flag: StatusFlag) {
+        match flag {
+            StatusFlag::Negative => bit_utils::set_bit_u8(&mut self.reg_p, 7),
+            StatusFlag::Overflow => bit_utils::set_bit_u8(&mut self.reg_p, 6),
+            StatusFlag::Break => bit_utils::set_bit_u8(&mut self.reg_p, 4),
+            StatusFlag::Decimal => bit_utils::set_bit_u8(&mut self.reg_p, 3),
+            StatusFlag::Interrupt => bit_utils::set_bit_u8(&mut self.reg_p, 2),
+            StatusFlag::Zero => bit_utils::set_bit_u8(&mut self.reg_p, 1),
+            StatusFlag::Carry => bit_utils::set_bit_u8(&mut self.reg_p, 0),
+        }
+    }
+
+    fn clear_flag(&mut self, flag: StatusFlag) {
+        match flag {
+            StatusFlag::Negative => bit_utils::clear_bit_u8(&mut self.reg_p, 7),
+            StatusFlag::Overflow => bit_utils::clear_bit_u8(&mut self.reg_p, 6),
+            StatusFlag::Break => bit_utils::clear_bit_u8(&mut self.reg_p, 4),
+            StatusFlag::Decimal => bit_utils::clear_bit_u8(&mut self.reg_p, 3),
+            StatusFlag::Interrupt => bit_utils::clear_bit_u8(&mut self.reg_p, 2),
+            StatusFlag::Zero => bit_utils::clear_bit_u8(&mut self.reg_p, 1),
+            StatusFlag::Carry => bit_utils::clear_bit_u8(&mut self.reg_p, 0),
+        }
+    }
     pub fn step(&mut self, inter: &mut Interconnect) -> u32 {
         // Do one instruction. (Possibly micro-ops?) Return the number
         // of cycles that were run in the emulation of the instruction
@@ -208,14 +257,13 @@ impl Cpu {
             0x9A => self.txs(inter, AddressingMode::Implicit),
             0x98 => self.tya(inter, AddressingMode::Implicit),
             _ => panic!("Unrecognized opcode."),
-        };
-        0
+        }
     }
     // ADC - Add with Carry
     fn adc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
         let mut cycles;
         let mut mem_val;
-        println!("[0x{:X}] ADC using Addressing Mode {:?}", self.opcode, mode);
+        trace!("[0x{:X}] ADC using Addressing Mode {:?}", self.opcode, mode);
         match mode {
             AddressingMode::Immediate => {
                 mem_val = inter.read_byte(self.reg_pc);
@@ -230,7 +278,7 @@ impl Cpu {
             }
             AddressingMode::ZeroPageX => {
                 let mem_loc = inter.read_byte(self.reg_pc);
-                mem_val = inter.read_byte(mem_loc as u16 + self.reg_x as u16);
+                mem_val = inter.read_byte((mem_loc as u16 + self.reg_x as u16) % 0x100);
                 self.reg_pc += 1;
                 cycles = 4;
             }
@@ -239,7 +287,7 @@ impl Cpu {
                 self.reg_pc += 1;
                 let mem_hi = inter.read_byte(self.reg_pc);
                 self.reg_pc += 1;
-                mem_val = inter.read_byte(((mem_hi << 4) | mem_lo) as u16);
+                mem_val = inter.read_byte(((mem_hi as u16) << 4) | mem_lo as u16);
                 cycles = 4;
             }
             AddressingMode::AbsoluteX => {
@@ -247,232 +295,303 @@ impl Cpu {
                 self.reg_pc += 1;
                 let mem_hi = inter.read_byte(self.reg_pc);
                 self.reg_pc += 1;
-                mem_val = inter.read_byte(((mem_hi << 4) | mem_lo) as u16 + self.reg_x as u16);
+                mem_val = inter.read_byte(((mem_hi as u16) << 4) | mem_lo as u16 + self.reg_x as u16);
                 cycles = 4;
             }
-
+            AddressingMode::AbsoluteY => {
+                let mem_lo = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                let mem_hi = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                mem_val = inter.read_byte(((mem_hi as u16) << 4) | mem_lo as u16 + self.reg_y as u16);
+                cycles = 4;
+            }
+            AddressingMode::IndexedIndirect => {
+                let indirect = inter.read_byte(self.reg_pc).wrapping_add(self.reg_x);
+                self.reg_pc += 1;
+                let mem_lo = inter.read_byte(indirect as u16);
+                let mem_hi = inter.read_byte(indirect.wrapping_add(1) as u16);
+                let mem_loc = ((mem_hi as u16) << 4) | mem_lo as u16;
+                mem_val = inter.read_byte(mem_loc);
+                cycles = 6;
+            }
+            AddressingMode::IndirectIndexed => {
+                let indirect = inter.read_byte(self.reg_pc);
+                self.reg_pc += 1;
+                let mem_lo = inter.read_byte(indirect as u16);
+                let mem_hi = inter.read_byte(indirect.wrapping_add(1) as u16);
+                let mem_loc = (((mem_hi as u16) << 4) | mem_lo as u16) + self.reg_y as u16;
+                mem_val = inter.read_byte(mem_loc);
+                cycles = 5;
+            }
             _ => panic!("Unrecognized addressing mode in ADC."),
         };
+        let carry: u8;
+        let sum: u8;
+        if self.test_flag(StatusFlag::Carry) {
+            carry = 1;
+        } else {
+            carry = 0;
+        };
+
+        match self.reg_a.overflowing_add(mem_val) {
+            (val, true) => {
+                self.set_flag(StatusFlag::Carry);
+                sum = val + carry; // Already overflowed, can't do it again
+            },
+            (val, false) => {
+                match val.overflowing_add(carry) {
+                    (val2, true) => {
+                        self.set_flag(StatusFlag::Carry);
+                        sum = val2;
+                    },
+                    (val2, false) => {
+                        self.clear_flag(StatusFlag::Carry);
+                        sum = val2;
+                    }
+                }
+            }
+        };
+
+        if sum == 0 {
+            self.set_flag(StatusFlag::Zero);
+        } else {
+            self.clear_flag(StatusFlag::Zero);
+        }
+
+        if (sum & 0x80 == 0x80) && (self.reg_a & 0x80 == 0x0) {
+            self.set_flag(StatusFlag::Negative);
+        } else {
+            self.clear_flag(StatusFlag::Negative)
+        }
+
+        if ((self.reg_a ^ sum) & (mem_val ^ sum) & 0x80) == 0x80 {
+            self.set_flag(StatusFlag::Overflow);
+        } else {
+            self.clear_flag(StatusFlag::Overflow);
+        }
+        
+        self.reg_a = sum;
         cycles
     }
     // AND - Logical AND
     fn and(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // ASL - Arithmetic Shift Left
     fn asl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BCC - Branch if Carry Clear
     fn bcc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BCS - Branch if Carry Set
     fn bcs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BEQ - Branch if Equal
     fn beq(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BIT - Bit Test
     fn bit(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BMI - Branch if Minus
     fn bmi(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BNE - Branch if Not Equal
     fn bne(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BPL - Branch if Positive
     fn bpl(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BRK - Force Interrupt
     fn brk(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BVC - Branch if Overflow Clear
     fn bvc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // BVS - Branch if Overflow Set
     fn bvs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CLC - Clear Carry Flag
     fn clc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CLD - Clear Decimal Mode
     fn cld(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CLI - Clear Interrupt Disable
     fn cli(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CLV - Clear Overflow Flag
     fn clv(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CMP - Compare
     fn cmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CPX - Compare X Register
     fn cpx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // CPY - Compare Y Register
     fn cpy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // DEC - Decrement Memory
     fn dec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // DEX - Decrement X Register
     fn dex(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // DEY - Decrement Y Register
     fn dey(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // EOR - Exclusive OR
     fn eor(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // INC - Increment Memory
     fn inc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // INX - Increment X Register
     fn inx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // INY - Increment Y Register
     fn iny(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // JMP - Jump
     fn jmp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // JSR - Jump to Subroutine
     fn jsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // LDA - Load Accumulator
     fn lda(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // LDX - Load X Register
     fn ldx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // LDY - Load Y Register
     fn ldy(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // LSR - Logical Shift Right
     fn lsr(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // NOP - No Operation
     fn nop(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // ORA - Logical Inclusive OR
     fn ora(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // PHA - Push Accumulator
     fn pha(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // PHP - Push Processor Status
     fn php(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // PLA - Pull Accumulator
     fn pla(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // PLP - Pull Processor Status
     fn plp(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // ROL - Rotate Left
     fn rol(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // ROR - Rotate Right
     fn ror(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // RTI - Return from Interrupt
     fn rti(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // RTS - Return from Subroutine
     fn rts(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // SBC - Subtract with Carry
     fn sbc(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // SEC - Set Carry Flag
     fn sec(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // SED - Set Decimal Flag
     fn sed(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // SEI - Set Interrupt Disable
     fn sei(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // STA - Store Accumulator
     fn sta(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // STX - Store X Register
     fn stx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // STY - Store Y Register
     fn sty(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TAX - Transfer Accumulator to X
     fn tax(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TAY - Transfer Accumulator to Y
     fn tay(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TSX - Transfer Stack POinter to X
     fn tsx(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TXA - Transfer X to Accumulator
     fn txa(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TXS - Transfer X to Stack Pointer
     fn txs(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
     // TYA - Transfer Y to Accumulator
     fn tya(&mut self, inter: &mut Interconnect, mode: AddressingMode) -> u32 {
-        0
+        unimplemented!("Unimplemented opcode.");
     }
 }

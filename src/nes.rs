@@ -15,8 +15,11 @@ impl Nes {
 		}
 	}
 
+	pub fn power_on_reset(&mut self) {
+		self.cpu.power_on_reset(&self.interconnect);
+	}
+
 	pub fn step(&mut self) -> u32 {
-		// Step with the CPU, passing in Interconnect
-		0
+		self.cpu.step(&mut self.interconnect)
 	}
 }
